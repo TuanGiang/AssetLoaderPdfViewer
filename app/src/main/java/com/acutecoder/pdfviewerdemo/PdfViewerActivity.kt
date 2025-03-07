@@ -60,7 +60,7 @@ class PdfViewerActivity : AppCompatActivity() {
 //            maxPageScale = 5f
 //            defaultPageScale = PdfViewer.Zoom.PAGE_WIDTH.floatValue
             pdfSettingsManager.restore(this)
-            load(filePath)
+            load("https://appassets.androidplatform.net/assets/sample.pdf")
             if (filePath.isNotBlank())
                 view.pdfToolBar.setFileName(fileName)
         }

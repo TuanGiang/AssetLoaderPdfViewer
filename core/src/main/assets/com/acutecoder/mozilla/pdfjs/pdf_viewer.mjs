@@ -4521,7 +4521,7 @@ const defaultOptions = {
     kind: OptionKind.WORKER
   },
   workerSrc: {
-    value: "../build/pdf.worker.mjs",
+    value: "https://appassets.androidplatform.net/assets/com/acutecoder/mozilla/pdfjs/build/pdf.worker.mjs",
     kind: OptionKind.WORKER
   }
 };
@@ -13666,7 +13666,11 @@ class TextLayerBuilder {
     div.addEventListener("copy", event => {
       if (!this.#enablePermissions) {
         const selection = document.getSelection();
-        event.clipboardData.setData("text/plain", removeNullCharacters(normalizeUnicode(selection.toString())));
+        if(JWI.shouldGiveConsentForCopy()) {
+            JWI.onRequestCopyText(removeNullCharacters(normalizeUnicode(selection.toString())));
+        } else {
+            event.clipboardData.setData("text/plain", removeNullCharacters(normalizeUnicode(selection.toString())));
+        }
       }
       event.preventDefault();
       event.stopPropagation();

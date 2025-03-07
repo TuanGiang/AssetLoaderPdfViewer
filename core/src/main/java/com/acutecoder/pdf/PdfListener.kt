@@ -24,6 +24,7 @@ interface PdfListener {
     fun onSpreadModeChange(spreadMode: PdfViewer.PageSpreadMode) {}
     fun onRotationChange(rotation: PdfViewer.PageRotation) {}
     fun onSingleClick() {}
+    fun onRequestCopyText(text: String) {}
     fun onDoubleClick() {}
     fun onLongClick() {}
     fun onLinkClick(link: String) {}

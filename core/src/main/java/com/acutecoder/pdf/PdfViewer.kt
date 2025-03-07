@@ -18,6 +18,7 @@ import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.URLUtil
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.LinearLayout
@@ -25,6 +26,7 @@ import android.widget.TextView
 import androidx.annotation.ColorInt
 import androidx.annotation.FloatRange
 import androidx.annotation.IntRange
+import androidx.webkit.WebViewAssetLoader
 import com.acutecoder.pdf.js.Body
 import com.acutecoder.pdf.js.call
 import com.acutecoder.pdf.js.callDirectly
@@ -36,7 +38,9 @@ import com.acutecoder.pdf.js.toJsRgba
 import com.acutecoder.pdf.js.toJsString
 import com.acutecoder.pdf.js.with
 import com.acutecoder.pdf.setting.UiSettings
+import java.io.File
 import kotlin.math.abs
+
 
 class PdfViewer @JvmOverloads constructor(
     context: Context,
@@ -57,12 +61,24 @@ class PdfViewer @JvmOverloads constructor(
      */
     var highlightEditorColors: List<Pair<String, Int>> = defaultHighlightEditorColors
     var pdfPrintAdapter: PrintDocumentAdapter? = null
+    var shouldGiveConsentForCopy: Boolean = true
 
     private val listeners = mutableListOf<PdfListener>()
     private val webInterface = WebInterface()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var onReadyListeners = mutableListOf<PdfViewer.() -> Unit>()
     private var tempBackgroundColor: Int? = null
+
+    val assetLoader: WebViewAssetLoader = WebViewAssetLoader.Builder()
+        .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
+        .addPathHandler(
+            "/pdf_previews/",
+            WebViewAssetLoader.InternalStoragePathHandler(
+                context,
+                File(context.filesDir, "pdf_previews")
+            )
+        )
+        .build()
 
     @SuppressLint("SetJavaScriptEnabled")
     private val webView: WebView = WebView(context).apply {
@@ -72,9 +88,6 @@ class PdfViewer @JvmOverloads constructor(
 
         settings.run {
             javaScriptEnabled = true
-            allowFileAccess = true
-            @Suppress("DEPRECATION")
-            allowUniversalAccessFromFileURLs = true
         }
 
         webViewClient = object : WebViewClient() {
@@ -106,6 +119,13 @@ class PdfViewer @JvmOverloads constructor(
                         }
                     }
                 }
+            }
+
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest
+            ): WebResourceResponse? {
+                return assetLoader.shouldInterceptRequest(request.url)
             }
         }
 
@@ -924,7 +944,7 @@ class PdfViewer @JvmOverloads constructor(
 
     companion object {
         private const val PDF_VIEWER_URL =
-            "file:///android_asset/com/acutecoder/mozilla/pdfjs/pdf_viewer.html"
+            "https://appassets.androidplatform.net/assets/com/acutecoder/mozilla/pdfjs/pdf_viewer.html"
         private const val COLOR_NOT_FOUND = 11
         private val ZOOM_SCALE_RANGE = -4f..-1f
 
@@ -1035,6 +1055,15 @@ class PdfViewer @JvmOverloads constructor(
             if (!link.startsWith(PDF_VIEWER_URL))
                 listeners.forEach { it.onLinkClick(link) }
         }
+
+        @JavascriptInterface
+        fun onRequestCopyText(text: String) = post {
+            listeners.forEach { it.onRequestCopyText(text) }
+        }
+
+        @JavascriptInterface
+        fun shouldGiveConsentForCopy() = shouldGiveConsentForCopy
+
 
         @JavascriptInterface
         fun getHighlightEditorColorsString() = highlightEditorColors
