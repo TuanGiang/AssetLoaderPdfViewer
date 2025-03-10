@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -13,12 +14,14 @@ import android.print.PrintDocumentAdapter
 import android.print.PrintManager
 import android.util.AttributeSet
 import android.util.Base64
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.URLUtil
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.LinearLayout
@@ -26,6 +29,7 @@ import android.widget.TextView
 import androidx.annotation.ColorInt
 import androidx.annotation.FloatRange
 import androidx.annotation.IntRange
+import androidx.annotation.RequiresApi
 import androidx.webkit.WebViewAssetLoader
 import com.acutecoder.pdf.js.Body
 import com.acutecoder.pdf.js.call
@@ -37,11 +41,14 @@ import com.acutecoder.pdf.js.toJsHex
 import com.acutecoder.pdf.js.toJsRgba
 import com.acutecoder.pdf.js.toJsString
 import com.acutecoder.pdf.js.with
+import com.acutecoder.pdf.setting.AssetSettings
+import com.acutecoder.pdf.setting.DisabledActionSettings
 import com.acutecoder.pdf.setting.UiSettings
 import java.io.File
 import kotlin.math.abs
 
 
+@RequiresApi(Build.VERSION_CODES.N)
 class PdfViewer @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -69,25 +76,31 @@ class PdfViewer @JvmOverloads constructor(
     private var onReadyListeners = mutableListOf<PdfViewer.() -> Unit>()
     private var tempBackgroundColor: Int? = null
 
+    private val assetSettings = AssetSettings.getInstance()
+
     val assetLoader: WebViewAssetLoader = WebViewAssetLoader.Builder()
-        .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
-        .addPathHandler(
-            "/pdf_previews/",
-            WebViewAssetLoader.InternalStoragePathHandler(
-                context,
-                File(context.filesDir, "pdf_previews")
-            )
-        )
+        .apply {
+            addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
+            assetSettings.pathSettings.forEach {
+                addPathHandler(
+                    "/${it.key}/",
+                    WebViewAssetLoader.InternalStoragePathHandler(context, File(it.path))
+                )
+            }
+        }
         .build()
+
+    private val disabledActionSettings = DisabledActionSettings.getInstance()
+
 
     @SuppressLint("SetJavaScriptEnabled")
     private val webView: WebView = WebView(context).apply {
         setBackgroundColor(Color.TRANSPARENT)
-
         if (isInEditMode) return@apply
 
         settings.run {
             javaScriptEnabled = true
+            disabledActionModeMenuItems = disabledActionSettings.disabledSettings
         }
 
         webViewClient = object : WebViewClient() {
